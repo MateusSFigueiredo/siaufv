@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formatador de Resumos do SIA UFV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <style>
+        #preview-container iframe { width: 100%; height: 750px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        /* Tema Dark Blue / Indigno */
+        .gradient-bg { background: linear-gradient(135deg, #1C3A52 0%, #0A192F 100%); }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans">
+
+    <!-- Header -->
+    <div class="gradient-bg py-8 px-4 mb-8 shadow-lg">
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-3xl font-extrabold text-white mb-1">Formatador de Resumos do SIA UFV</h1>
+            <p class="text-blue-100 opacity-90 text-sm">Extração inteligente e formatação customizada</p>
+        </div>
+    </div>
+
+    <main class="max-w-6xl mx-auto px-4 pb-12">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Coluna Esquerda -->
+            <div class="lg:col-span-5 space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-md border-t-4 border-t-[#1C3A52]">
+                    <h2 class="text-xl font-bold text-slate-800 mb-4">Gerar resumo</h2>
+                    
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-lg mb-6 text-sm text-amber-900 [&_a]:underline [&_a]:text-amber-700">
+                        <p class="font-bold mb-2">Instruções:</p>
+                        <ol class="list-decimal ml-5 space-y-2">
+                            <li>Abra a página do trabalho no <a href="https://www3.dti.ufv.br/sia/">site do SIA</a>.</li>
+                            <li>Selecione todo o texto (<b>Ctrl + A</b>) e copie (<b>Ctrl + C</b>).</li>
+                            <li>Cole (<b>Ctrl + V</b>) no campo abaixo e clique em gerar.</li>
+                        </ol>
+                    </div>
+
+                    <textarea id="manualPaste" class="w-full h-80 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none mb-4" 
+                              placeholder="Cole o texto completo da página aqui..."></textarea>
+                    
+                    <div class="flex flex-col gap-3">
+                        <button onclick="processManual()" class="w-full bg-[#1C3A52] hover:bg-[#142b3d] text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                            <span>Processar e Gerar PDF</span>
+                        </button>
+                        <button onclick="clearAll()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 rounded-lg text-sm border border-slate-200">
+                            Limpar campo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Painel Avançado -->
+                <div class="bg-white rounded-2xl shadow-md border-t-4 border-t-slate-400 overflow-hidden">
+                    <button onclick="toggleAdvanced()" class="w-full p-6 flex justify-between items-center bg-white hover:bg-slate-50 transition-colors">
+                        <h2 class="text-xl font-bold text-slate-800">Formatação avançada</h2>
+                        <svg id="advArrow" class="w-6 h-6 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    
+                    <div id="advancedOptions" class="hidden p-6 pt-0 space-y-6 border-t border-slate-100">
+                        <div class="grid grid-cols-1 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Título do Trabalho</label>
+                                <select id="titleCase" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                                    <option value="caps">TODAS EM MAIÚSCULAS</option>
+                                    <option value="original">Manter original do site</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Nomes (Autor/Orientador/Membros)</label>
+                                <select id="authorCase" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                                    <option value="original">Manter original do site</option>
+                                    <option value="title" selected>Primeira Letra Maiúscula (Title Case)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Link para apresentação</label>
+                                <input type="text" id="presentationLink" placeholder="https://..." class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500">
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-100">
+                            <div class="flex justify-between items-center mb-3">
+                                <label class="text-xs font-bold text-slate-400 uppercase">Margens da página (pt)</label>
+                                <button onclick="resetMargins()" class="text-[10px] text-blue-600 font-bold hover:underline">Resetar para o padrão</button>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-[10px] text-slate-400 font-bold uppercase">Superior (0-300)</label>
+                                    <input type="number" id="mTop" value="60" min="0" max="300" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-slate-400 font-bold uppercase">Inferior (0-300)</label>
+                                    <input type="number" id="mBottom" value="60" min="0" max="300" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-slate-400 font-bold uppercase">Esquerda (0-200)</label>
+                                    <input type="number" id="mLeft" value="70" min="0" max="200" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-slate-400 font-bold uppercase">Direita (0-200)</label>
+                                    <input type="number" id="mRight" value="70" min="0" max="200" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna Direita -->
+            <div class="lg:col-span-7">
+                <div id="statusMsg" class="hidden mb-4 p-4 rounded-xl font-medium"></div>
+                <div id="previewArea" class="hidden animate-in fade-in duration-500">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-slate-800">Previsão do documento</h2>
+                        <button onclick="downloadPdf()" class="bg-sky-600 hover:bg-sky-900 text-white px-6 py-2 rounded-lg font-bold shadow-lg">Download PDF</button>
+                    </div>
+                    <div id="preview-container"></div>
+                </div>
+                <div id="emptyState" class="h-full flex flex-col items-center justify-center text-slate-400 py-32 border-2 border-dashed border-slate-200 rounded-3xl bg-white/50 text-center">
+                    <svg class="w-16 h-16 mb-4 opacity-20 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <p>Cole o texto ao lado para visualizar o resumo...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="max-w-6xl mx-auto px-4 py-8 text-center text-slate-400 text-xs">
+        Criado por Mateus F. com Google AI Studio - v0.9.8
+    </footer>
+
+    <script>
+        let generatedPdf = null;
+        let lastExtractedData = null;
+
+        function toggleAdvanced() {
+            const panel = document.getElementById('advancedOptions');
+            const arrow = document.getElementById('advArrow');
+            panel.classList.toggle('hidden');
+            arrow.classList.toggle('rotate-180');
+        }
+
+        function resetMargins() {
+            document.getElementById('mTop').value = 60;
+            document.getElementById('mBottom').value = 60;
+            document.getElementById('mLeft').value = 70;
+            document.getElementById('mRight').value = 70;
+        }
+
+        function formatNameUnbreakable(str, authorCase) {
+            if (!str) return '';
+            let processed = str;
+            if (authorCase === 'title') {
+                const smallWords = ['de', 'da', 'do', 'dos', 'das', 'e'];
+                processed = str.toLowerCase().split(' ').map(word => {
+                    if (smallWords.includes(word)) return word;
+                    return word.charAt(0).toUpperCase() + word.slice(1);
+                }).join(' ');
+            }
+            return processed.split(',').map(name => {
+                return name.trim().replace(/ /g, '\u00A0');
+            }).join(', ');
+        }
+
+        function normalizeCampusForUrl(campus) {
+            const c = campus.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (c.includes("rio paranaiba")) return "rio-paranaiba";
+            if (c.includes("vicosa")) return "vicosa";
+            if (c.includes("florestal")) return "florestal";
+            return c;
+        }
+
+        function clearAll() {
+            document.getElementById('manualPaste').value = "";
+            document.getElementById('presentationLink').value = "";
+            document.getElementById('previewArea').classList.add('hidden');
+            document.getElementById('emptyState').classList.remove('hidden');
+            generatedPdf = null;
+            lastExtractedData = null;
+        }
+
+        function smartParse(text) {
+            const data = {};
+            const patterns = {
+                'Campus': /SIA\s+>\s+Campus\s+([^>]+)>/,
+                // Regex Edição: Captura tudo após '>' até encontrar um ano de 4 dígitos, ignorando o que vem depois.
+                'Edicao': /Edições\s+>\s+(.+?\d{4})/,
+                'DataEvento': /(\d+\s+a\s+\d+\s+de\s+[a-zç]+\s+de\s+\d{4})/i,
+                'TrabalhoId': /Trabalho\s+(\d+)/,
+                'Título': /Título\s+([\s\S]*?)(?=\n[A-Z][a-zà-ú]|$)/,
+                'Autor': /Primeiro autor\s+([^\n]*)/,
+                'Orientador': /Orientador\s+([^\n]*)/,
+                'OutrosMembros': /Outros membros\s+([^\n]*)/,
+                'Keywords': /Palavras-chave\s+([^\n]*)/,
+                'Instituicao': /Instituição\s+([^\n]*)/,
+                'Nivel': /Nível\s+([^\n]*)/,
+                'Modalidade': /Modalidade\s+([^\n]*)/,
+                'AreaConhecimento': /Área de conhecimento\s+([^\n]*)/,
+                'AreaTematica': /Área temática\s+([^\n]*)/,
+                'Setor': /Setor\s+([^\n]*)/,
+                'Bolsa': /Bolsa\s+([^\n]*)/,
+                'Apoio': /Apoio financeiro\s+([^\n]*)/
+            };
+
+            // Extração primária
+            for (const [key, regex] of Object.entries(patterns)) {
+                const match = text.match(regex);
+                if (match && match[1]) data[key] = match[1].trim();
+            }
+
+            // Lógica específica para o Resumo: deve vir DEPOIS do Título
+            if (data['Título']) {
+                const titleIndex = text.indexOf(data['Título']);
+                const textAfterTitle = text.substring(titleIndex);
+                const resumoMatch = textAfterTitle.match(/Resumo\s+([\s\S]*?)(?=\nPalavras-chave|$)/);
+                if (resumoMatch) {
+                    data['Resumo'] = resumoMatch[1].trim();
+                }
+            }
+
+            if (data.Campus && data.Edicao && data.TrabalhoId) {
+                const yearMatch = data.Edicao.match(/\d{4}/);
+                data.ReconstructedUrl = `https://www3.dti.ufv.br/sia/${normalizeCampusForUrl(data.Campus)}/${yearMatch ? yearMatch[0] : ""}/trabalhos/${data.TrabalhoId}`;
+            }
+            return data;
+        }
+
+        function processManual() {
+            const content = document.getElementById('manualPaste').value;
+            if (!content) return alert("Por favor, cole o texto do trabalho.");
+            const data = smartParse(content);
+            if (!data.Título || !data.Resumo) return alert("Erro ao extrair dados. Copie a página inteira.");
+            
+            lastExtractedData = data; 
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('previewArea').classList.remove('hidden');
+            generatePdf(data);
+        }
+
+        function generatePdf(data) {
+            const mTop = Math.min(Math.max(parseInt(document.getElementById('mTop').value) || 0, 0), 300);
+            const mBottom = Math.min(Math.max(parseInt(document.getElementById('mBottom').value) || 0, 0), 300);
+            const mLeft = Math.min(Math.max(parseInt(document.getElementById('mLeft').value) || 0, 0), 200);
+            const mRight = Math.min(Math.max(parseInt(document.getElementById('mRight').value) || 0, 0), 200);
+            
+            const titleCase = document.getElementById('titleCase').value;
+            const authorCase = document.getElementById('authorCase').value;
+            const presLink = document.getElementById('presentationLink').value.trim();
+
+            let titleText = data['Título'] || '';
+            if (titleCase === 'caps') titleText = titleText.toUpperCase();
+
+            let autor = formatNameUnbreakable(data['Autor'], authorCase);
+            let orientador = formatNameUnbreakable(data['Orientador'], authorCase);
+            let outrosMembros = formatNameUnbreakable(data['OutrosMembros'], authorCase);
+
+            const now = new Date();
+            const timestamp = now.getFullYear() + '-' + 
+                              String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                              String(now.getDate()).padStart(2, '0') + ' ' + 
+                              String(now.getHours()).padStart(2, '0') + ':' + 
+                              String(now.getMinutes()).padStart(2, '0');
+
+            const metaTableBody = [
+                [{text: 'ID do trabalho', bold: true}, data.TrabalhoId || '-'],
+                [{text: 'Data do evento', bold: true}, data.DataEvento || '-'],
+                [{text: 'Instituição', bold: true}, data.Instituicao || '-'],
+                [{text: 'Nível', bold: true}, data.Nivel || '-'],
+                [{text: 'Modalidade', bold: true}, data.Modalidade || '-'],
+                [{text: 'Área de conhecimento', bold: true}, data.AreaConhecimento || '-'],
+                [{text: 'Área temática', bold: true}, data.AreaTematica || '-'],
+                [{text: 'Setor', bold: true}, data.Setor || '-']
+            ];
+
+            if (data.Bolsa && data.Bolsa !== 'Não' && data.Bolsa !== 'Não informado') {
+                metaTableBody.push([{text: 'Bolsa', bold: true}, data.Bolsa]);
+            }
+            if (data.Apoio && data.Apoio !== 'Não' && data.Apoio !== 'Não informado') {
+                metaTableBody.push([{text: 'Apoio financeiro', bold: true}, data.Apoio]);
+            }
+
+            metaTableBody.push([{text: 'Link original', bold: true}, { text: data.ReconstructedUrl || '-', link: data.ReconstructedUrl, color: 'blue', decoration: 'underline' }]);
+
+            if (presLink && (presLink.startsWith('http://') || presLink.startsWith('https://'))) {
+                metaTableBody.push([{text: 'Link para apresentação', bold: true}, { text: presLink, link: presLink, color: 'blue', decoration: 'underline' }]);
+            }
+
+            const docDef = {
+                pageMargins: [mLeft, mTop, mRight, mBottom],
+                content: [
+                    {
+                        columns: [
+                            { text: 'SIMPÓSIO DE INTEGRAÇÃO ACADÊMICA - SIA UFV', style: 'pageTop' },
+                            { 
+                                stack: [
+                                    `${(data.Edicao || '').toUpperCase()} - CAMPUS ${(data.Campus || '').toUpperCase()}`,
+                                    'UNIVERSIDADE FEDERAL DE VIÇOSA'
+                                ], 
+                                style: 'pageTop', alignment: 'right' 
+                            }
+                        ],
+                        margin: [0, 0, 0, 30]
+                    },
+                    { text: titleText, style: 'title' },
+                    { text: autor, style: 'author' },
+                    { text: `Orientador(a): ${orientador}`, style: 'advisor' },
+                    outrosMembros ? { text: `Outros membros: ${outrosMembros}`, style: 'advisor' } : null,
+                    { text: data.Instituicao || 'Universidade Federal de Viçosa', style: 'inst', margin: [0, 5, 0, 0] },
+                    { text: 'RESUMO', style: 'sectionLabel' },
+                    { text: data.Resumo || '', style: 'bodyText' },
+                    { text: [{ text: 'Palavras-chave: ', bold: true }, data.Keywords || ''], style: 'keywords' },
+
+                    { text: '_______________________________________________________________________________________________', color: '#eee', margin: [0, 10, 0, 5], fontSize: 8 },
+
+                    { text: 'INFORMAÇÕES ADICIONAIS', style: 'metaHeader' },
+                    {
+                        style: 'metaTable',
+                        table: {
+                            widths: ['25%', '75%'],
+                            body: metaTableBody
+                        },
+                        layout: 'noBorders'
+                    },
+                    { text: 'Documento gerado com informações fornecidas pelo usuário. Confira a versão original do trabalho no site do SIA.', style: 'disclaimer', margin: [0, 15, 0, 0] },
+                    { text: `Documento gerado em ${timestamp}`, style: 'disclaimer', margin: [0, 2, 0, 0] }
+                ].filter(Boolean),
+                styles: {
+                    pageTop: { fontSize: 8, color: '#999', bold: true },
+                    title: { fontSize: 13, bold: true, alignment: 'center', margin: [0, 0, 0, 15], lineHeight: 1.3 },
+                    author: { fontSize: 11, bold: true, alignment: 'center', margin: [0, 0, 0, 2] },
+                    advisor: { fontSize: 10, italic: true, alignment: 'center', margin: [0, 0, 0, 2] },
+                    inst: { fontSize: 9, alignment: 'center', color: '#777', italic: true },
+                    sectionLabel: { fontSize: 11, bold: true, margin: [0, 25, 0, 10], alignment: 'center' },
+                    bodyText: { fontSize: 11, alignment: 'justify', lineHeight: 1.6 },
+                    keywords: { fontSize: 10, margin: [0, 5, 0, 0] },
+                    metaHeader: { fontSize: 9, bold: true, color: '#666', margin: [0, 5, 0, 5] },
+                    metaTable: { fontSize: 8, color: '#555' },
+                    disclaimer: { fontSize: 7, color: '#aaa', italic: true, alignment: 'center' }
+                }
+            };
+
+            generatedPdf = pdfMake.createPdf(docDef);
+            generatedPdf.getDataUrl((dataUrl) => {
+                document.getElementById('preview-container').innerHTML = `<iframe src="${dataUrl}"></iframe>`;
+            });
+        }
+
+        function downloadPdf() {
+            if (generatedPdf && lastExtractedData) {
+                const fullName = lastExtractedData.Autor || 'trabalho';
+                const names = fullName.trim().split(' ');
+                const lastName = names[names.length - 1].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const year = (lastExtractedData.Edicao || '').match(/\d{4}/)?.[0] || '0000';
+                const id = lastExtractedData.TrabalhoId || '00000';
+                generatedPdf.download(`${lastName}${year}_resumo_SIA_${id}.pdf`);
+            }
+        }
+    </script>
+</body>
+</html>
